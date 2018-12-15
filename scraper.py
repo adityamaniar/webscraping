@@ -14,7 +14,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 driver = None
 
-total_scrolls = 5000
+total_scrolls = 500
 current_scrolls = 0
 scroll_time = 5
 old_height = 0
@@ -103,8 +103,9 @@ def extract_and_write_posts(elements, filename):
     try:
         f = open(filename, "w", newline='\r\n')
         f.writelines('TIME || TYPE  || TITLE || STATUS  ||   LINKS(Shared Posts/Shared Links etc) ' + '\n' + '\n')
-
+        print(elements)
         for x in elements:
+            print(x + " ")
             try:
                 video_link = " "
                 title = " "
@@ -120,110 +121,100 @@ def extract_and_write_posts(elements, filename):
                 month = int(date.split("/")[0])
                 print(month + "/" + year)
 
-                if(month >= 12 and year >= 18):
-                    #print("ikde")
+                
+                title = get_title(x)
+                if title.text.find("shared a memory") != -1:
+                    x = x.find_element_by_xpath(".//div[@class='_1dwg _1w_m']")
                     title = get_title(x)
-                    if title.text.find("shared a memory") != -1:
-                        x = x.find_element_by_xpath(".//div[@class='_1dwg _1w_m']")
-                        title = get_title(x)
 
-                    status = get_status(x)
-                    if title.text == driver.find_element_by_id("fb-timeline-cover-name").text:
-                        if status == '':
-                            temp = get_div_links(x, "img")
-                            if temp == '':
-                                link = get_div_links(x, "a").get_attribute('href')
-                                type = "status update without text"
-                            else:
-                                type = 'life event'
-                                link = get_div_links(x, "a").get_attribute('href')
-                                status = get_div_links(x, "a").text
+                status = get_status(x)
+                if title.text == driver.find_element_by_id("fb-timeline-cover-name").text:
+                    if status == '':
+                        temp = get_div_links(x, "img")
+                        if temp == '':
+                            link = get_div_links(x, "a").get_attribute('href')
+                            type = "status update without text"
                         else:
-                            type = "status update"
-                            if get_div_links(x, "a") != '':
-                                link = get_div_links(x, "a").get_attribute('href')
-
-                    elif title.text.find(" shared ") != -1:
-
-                        x1, link = get_title_links(title)
-                        type = "shared " + x1
-
-                    elif title.text.find(" at ") != -1 or title.text.find(" in ") != -1:
-                        if title.text.find(" at ") != -1:
-                            x1, link = get_title_links(title)
-                            type = "check in"
-                        elif title.text.find(" in ") != 1:
+                            type = 'life event'
+                            link = get_div_links(x, "a").get_attribute('href')
                             status = get_div_links(x, "a").text
-
-                    elif title.text.find(" added ") != -1 and title.text.find("photo") != -1:
-                        type = "added photo"
-                        link = get_div_links(x, "a").get_attribute('href')
-
-                    elif title.text.find(" added ") != -1 and title.text.find("video") != -1:
-                        type = "added video"
-                        link = get_div_links(x, "a").get_attribute('href')
-
                     else:
-                        type = "others"
+                        type = "status update"
+                        if get_div_links(x, "a") != '':
+                            link = get_div_links(x, "a").get_attribute('href')
 
-                    if not isinstance(title, str):
-                        title = title.text
+                elif title.text.find(" shared ") != -1:
 
-                    status = status.replace("\n", " ")
-                    title = title.replace("\n", " ")
+                    x1, link = get_title_links(title)
+                    type = "shared " + x1
 
-                    line = str(time) + " || " + str(type) + ' || ' + str(title) + ' || ' + str(status) + ' || ' + str(
-                        link) + "\n"
+                elif title.text.find(" at ") != -1 or title.text.find(" in ") != -1:
+                    if title.text.find(" at ") != -1:
+                        x1, link = get_title_links(title)
+                        type = "check in"
+                    elif title.text.find(" in ") != 1:
+                        status = get_div_links(x, "a").text
 
-                    try:
-                        f.writelines(line)
-                    except:
-                        print('Posts: Could not map encoded characters')
+                elif title.text.find(" added ") != -1 and title.text.find("photo") != -1:
+                    type = "added photo"
+                    link = get_div_links(x, "a").get_attribute('href')
+
+                elif title.text.find(" added ") != -1 and title.text.find("video") != -1:
+                    type = "added video"
+                    link = get_div_links(x, "a").get_attribute('href')
+
+                else:
+                    type = "others"
+
+                if not isinstance(title, str):
+                    title = title.text
+
+                status = status.replace("\n", " ")
+                title = title.replace("\n", " ")
+
+                line = str(time) + " || " + str(type) + ' || ' + str(title) + ' || ' + str(status) + ' || ' + str(
+                    link) + "\n"
+
+                try:
+                    f.writelines(line)
+                except:
+                    print('Posts: Could not map encoded characters')
             except:
                 pass
-                
+
         f.close()
     except:
-        print("Exception (extract_and_write_posts)", "Status =", sys.exc_info()[0])
+        print("Exception (extract_and_write_posts)", sys.exc_info()[0])
 
     return
 
 
-def save_to_file(name, elements, status, current_section):
+def save_to_file(name, elements):
 
     try:
         f = None
-        if status == 4:
-            extract_and_write_posts(elements, name)
-            return
+        #print(elements)
+        extract_and_write_posts(elements, name)
+        return
 
         f.close()
 
     except:
-        print("Exception (save_to_file)", "Status =", str(status), sys.exc_info()[0])
+        print("Exception (save_to_file)", sys.exc_info()[0])
 
     return
 
 
-def scrap_data(id, scan_list, section, elements_path, save_status, file_names):
+def scrap_data(id, elements_path, file_names):
 
-    page = []
+    try:
+        driver.get(id)
+        scroll()
+        data = driver.find_elements_by_xpath(elements_path)
+        save_to_file(file_names, data)
 
-    if save_status == 4:
-        page.append(id)
-
-    for i in range(len(section)):
-        page.append(id + section[i])
-
-    for i in range(len(scan_list)):
-        try:
-            driver.get(page[i])
-            scroll()
-            data = driver.find_elements_by_xpath(elements_path[i])
-            save_to_file(file_names[i], data, save_status, i)
-
-        except:
-            print("Exception (scrap_data)", str(i), "Status =", str(save_status), sys.exc_info()[0])
+    except:
+        print("Exception (scrap_data)", sys.exc_info()[0])
 
 
 def create_original_link(url):
@@ -274,14 +265,11 @@ def scrap_profile(ids):
 
         print("----------------------------------------")
         print("Posts:")
-        scan_list = [None]
-        section = []
-        elements_path = ["//div[@class='_4-u2 mbm _4mrt _5jmm _5pat _5v3q _4-u8']"]
+        elements_path = "//div[@class='_4-u2 mbm _4mrt _5jmm _5pat _5v3q _4-u8']"
 
-        file_names = ["Posts.txt"]
-        save_status = 4
+        file_names = "Posts.txt"
 
-        scrap_data(id, scan_list, section, elements_path, save_status, file_names)
+        scrap_data(id, elements_path, file_names)
         print("Posts(Statuses) Done")
         print("----------------------------------------")
         
