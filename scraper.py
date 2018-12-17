@@ -4,6 +4,8 @@ import platform
 import sys
 import urllib.request
 
+import mysql.connector
+
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
@@ -99,13 +101,12 @@ def get_time(x):
         return time
 
 
-def extract_and_write_posts(elements, filename):
+def write_to_db(elements):
     try:
-        f = open(filename, "w", newline='\r\n')
-        f.writelines('TIME || TYPE  || TITLE || STATUS  ||   LINKS(Shared Posts/Shared Links etc) ' + '\n' + '\n')
-        print(elements)
+        # f = open(filename, "w", newline='\r\n')
+        # f.writelines('TIME || TYPE  || TITLE || STATUS  ||   LINKS(Shared Posts/Shared Links etc) ' + '\n' + '\n')
+
         for x in elements:
-            print(x + " ")
             try:
                 video_link = " "
                 title = " "
@@ -115,12 +116,6 @@ def extract_and_write_posts(elements, filename):
                 time = " "
 
                 time = get_time(x)
-
-                date = time.split(", ")[0]
-                year = int(date.split("/")[-1])
-                month = int(date.split("/")[0])
-                print(month + "/" + year)
-
                 
                 title = get_title(x)
                 if title.text.find("shared a memory") != -1:
@@ -169,38 +164,21 @@ def extract_and_write_posts(elements, filename):
                 if not isinstance(title, str):
                     title = title.text
 
-                status = status.replace("\n", " ")
-                title = title.replace("\n", " ")
+                sql = "INSERT INTO posts (title, textContent, time_stamp) VALUES (%s, %s, %s)"
+                val = (str(title), str(status), str(time))
+                mycursor.execute(sql, val)
 
-                line = str(time) + " || " + str(type) + ' || ' + str(title) + ' || ' + str(status) + ' || ' + str(
-                    link) + "\n"
+                mydb.commit()
 
-                try:
-                    f.writelines(line)
-                except:
-                    print('Posts: Could not map encoded characters')
+                print(mycursor.rowcount, "record inserted.")
+
             except:
+                print("Element exception")
                 pass
 
         f.close()
     except:
         print("Exception (extract_and_write_posts)", sys.exc_info()[0])
-
-    return
-
-
-def save_to_file(name, elements):
-
-    try:
-        f = None
-        #print(elements)
-        extract_and_write_posts(elements, name)
-        return
-
-        f.close()
-
-    except:
-        print("Exception (save_to_file)", sys.exc_info()[0])
 
     return
 
@@ -211,7 +189,7 @@ def scrap_data(id, elements_path, file_names):
         driver.get(id)
         scroll()
         data = driver.find_elements_by_xpath(elements_path)
-        save_to_file(file_names, data)
+        write_to_db(data)
 
     except:
         print("Exception (scrap_data)", sys.exc_info()[0])
@@ -304,16 +282,45 @@ def login(email, password):
         exit()
 
 
+def initDatabase():
+
+    global mydb
+    global mycursor
+
+    import mysql.connector
+
+    mydb = mysql.connector.connect(
+        host = 'localhost',
+        user = 'root',
+        password = 'password',
+        database = 'scrapingDB'
+    )
+
+    mycursor = mydb.cursor()
+    #mycursor.execute("CREATE TABLE posts (title VARCHAR(255), textContent VARCHAR(255), time_stamp VARCHAR(255))")
+
+    mycursor.execute("SHOW TABLES")
+
+    for x in mycursor:
+        print(x)
+
+
+
+
+
 def main():
     ids = ["https://en-gb.facebook.com/" + line.split("/")[-1] for line in open("input.txt", newline='\n')]
 
     if len(ids) > 0:
-        email = input('\nEnter your Facebook Email: ')
-        password = input('Enter your Facebook Password: ')
+        #email = input('\nEnter your Facebook Email: ')
+        #password = input('Enter your Facebook Password: ')
+        email = "adityamaniar24@gmail.com"
+        password = "aditya"
 
         print("\nStarting Scraping...")
 
         login(email, password)
+        initDatabase()
         scrap_profile(ids)
         driver.close()
     else:
